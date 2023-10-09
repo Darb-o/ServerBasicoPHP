@@ -8,10 +8,10 @@ class HomeController extends Controller{
 
     public function index(){
         $contactModel = new Contact();
-        return $contactModel->update(5,[
-            'name' => 'Papurri',
-            'email' => 'Chulo',
-            'phone' => '258852'
+        return $contactModel->create([
+            'name' => 'Papaya',
+            'email' => 'De celaya',
+            'phone' => '9517538246'
         ]);
         /*si se especifica home, es la ubicacion, pero si este se encuentra
         dentro de una carpeta hay que especificar*/

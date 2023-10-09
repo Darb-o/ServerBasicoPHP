@@ -26,10 +26,21 @@ class Model{
         }
     }
 
-    public function query($sql){
+    public function query($sql,$data = [],$params = null){
         /*fetch_assoc trae solo la primera busqueda, como clave valor, pero con el all trae todos
         solo hay que transformarla para que sea asociativa*/
-        $this->query = $this->connection->query($sql);
+        if($data){
+            //determina si el valor del value es string
+            if($params == null){
+                $params = str_repeat('s', count($data));
+            }
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bind_param($params,...$data);
+            $stmt->execute();
+            $this->query = $stmt->get_result();
+        }else{
+            $this->query = $this->connection->query($sql);
+        }
         return $this;
     }
 
@@ -49,8 +60,8 @@ class Model{
     }
     //encontrar un registro en especifico
     public function find($id){
-        $sql = "select * from {$this->table} where id = {$id}";
-        return $this->query($sql)->first();
+        $sql = "select * from {$this->table} where id = ?";
+        return $this->query($sql, [$id], 'i')->first();
     }
 
     /*permite buscar por una columna especifica, con un valor especifico, pero a su vez 
@@ -61,8 +72,11 @@ class Model{
             $value = $operator;
             $operator = '=';   
         }
-        $sql = "select * from {$this->table} where {$column} {$operator} '{$value}'";
-        $this->query($sql);
+        /*prevenir inyecciones al tomar informacion extra como texto plano
+        en la sentencia, evitando sentencias extrañas ingresadas por el formulario*/
+        //$value = $this->connection->real_escape_string($value);
+        $sql = "select * from {$this->table} where {$column} {$operator} ?";
+        $this->query($sql,[$value]);
         return $this;
     }
 
@@ -74,9 +88,8 @@ class Model{
         $columns = implode(',',$columns);
         $values = array_values($data);
         //da formato para que la informacion quede entre comillas
-        $values = "'".implode("','",$values)."'";
-        $sql = "insert into {$this->table} ({$columns}) values ({$values})";
-        $this->query($sql);
+        $sql = "insert into {$this->table} ({$columns}) values (".str_repeat('?, ', count($values)-1)."?)";
+        $this->query($sql,$values);
         //retorna el ultimo id insertado
         $insert_id = $this->connection->insert_id;
         return $this->find($insert_id);
@@ -87,16 +100,19 @@ class Model{
         //recibe la informacion y la copea, luego la separa por comas y hacer la consulta
         $fields = [];
         foreach($data as $key => $value){
-            $fields[] = "{$key} = '{$value}'";
+            $fields[] = "{$key} = '?'";
         }
         $fields = implode(', ',$fields);
-        $sql = "update {$this->table} set {$fields} where id = {$id}";
-        $this->query($sql);
+        $sql = "update {$this->table} set {$fields} where id = ?";
+        $values = array_values($data);
+        $values[] = $id;
+        $this->query($sql,$values);
         return $this->find($id);
     }
 
     //delete
     public function delete($id){
-        $sql = "delete from {$this->table} where id = {$id}";
+        $sql = "delete from {$this->table} where id = ?";
+        $this->query($sql,[$id],'i');
     }
 }
